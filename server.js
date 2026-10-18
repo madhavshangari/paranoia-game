@@ -139,8 +139,107 @@ app.delete('/api/submissions/:id', requireGod, (req, res) => {
 });
 
 app.delete('/api/submissions', requireGod, (req, res) => {
-  writeDB({ submissions: [], nextId: 1 });
+  writeDB({ submissions: [], nextId: 1, game: null });
   res.json({ success: true, message: 'All submissions cleared.' });
+});
+
+// ── Game Loop & Shuffle Routes ──────────────────────────────────────────────
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+app.post('/api/game/shuffle', requireGod, (req, res) => {
+  const db = readDB();
+  const subs = db.submissions || [];
+
+  if (subs.length < 3) {
+    return res.status(400).json({
+      error: `Need at least 3 players to form a Paranoia loop (current: ${subs.length}).`
+    });
+  }
+
+  // 1. Shuffle players to build a single directed Hamiltonian cycle
+  const shuffledPlayers = shuffleArray(subs);
+  const n = shuffledPlayers.length;
+
+  // 2. Shuffle objects and places
+  let shuffledObjects = shuffleArray(subs.map(s => s.object));
+  let shuffledPlaces = shuffleArray(subs.map(s => s.place));
+
+  // Avoid giving players their own object or place when possible
+  for (let i = 0; i < n; i++) {
+    if (shuffledObjects[i].toLowerCase() === shuffledPlayers[i].object.toLowerCase()) {
+      const next = (i + 1) % n;
+      [shuffledObjects[i], shuffledObjects[next]] = [shuffledObjects[next], shuffledObjects[i]];
+    }
+    if (shuffledPlaces[i].toLowerCase() === shuffledPlayers[i].place.toLowerCase()) {
+      const next = (i + 1) % n;
+      [shuffledPlaces[i], shuffledPlaces[next]] = [shuffledPlaces[next], shuffledPlaces[i]];
+    }
+  }
+
+  // 3. Build assignments (Player i targets Player (i+1) % n)
+  const assignments = shuffledPlayers.map((hunter, i) => {
+    const target = shuffledPlayers[(i + 1) % n];
+    const weapon = shuffledObjects[i];
+    const location = shuffledPlaces[i];
+
+    const dmText = `🔪 *PARANOIA: TOP SECRET ASSIGNMENT* 👁️\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🎯 *Your Target:* ${target.full_name} (${target.room_number})\n` +
+      `📦 *Murder Weapon:* ${weapon}\n` +
+      `📍 *Crime Scene:* ${location}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `💀 *HOW TO KILL:*\n` +
+      `1. Lure your target to *${location}*.\n` +
+      `2. Make them hold the *${weapon}* for 1 full second.\n` +
+      `3. They must take it willingly (no force).\n` +
+      `4. DM God immediately with: who, when, and where.\n\n` +
+      `⚠️ Never reveal your target or that you are playing. Trust no one.`;
+
+    return {
+      order: i + 1,
+      hunter_name: hunter.full_name,
+      hunter_room: hunter.room_number,
+      target_name: target.full_name,
+      target_room: target.room_number,
+      object: weapon,
+      place: location,
+      dm_text: dmText
+    };
+  });
+
+  db.game = {
+    assignments,
+    created_at: new Date().toISOString(),
+    player_count: n
+  };
+
+  writeDB(db);
+
+  res.json({
+    success: true,
+    message: `Game successfully randomized into a single ${n}-player loop!`,
+    game: db.game
+  });
+});
+
+app.get('/api/game/assignments', requireGod, (req, res) => {
+  const db = readDB();
+  res.json({ game: db.game || null });
+});
+
+app.post('/api/game/reset', requireGod, (req, res) => {
+  const db = readDB();
+  db.game = null;
+  writeDB(db);
+  res.json({ success: true, message: 'Game assignments cleared.' });
 });
 
 // ── Page Routes ─────────────────────────────────────────────────────────────

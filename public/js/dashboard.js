@@ -1,6 +1,7 @@
 // ── PARANOIA — God's Dashboard Logic ─────────────────────────────────────────
 
 let allSubmissions = [];
+let activeGame = null;
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
@@ -37,6 +38,22 @@ async function checkAuth() {
   }
 }
 
+// Tab navigation
+function switchTab(tabName) {
+  const tabs = ['submissions', 'game'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}Btn`);
+    const sec = document.getElementById(`section${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    if (t === tabName) {
+      btn?.classList.add('active');
+      sec?.classList.add('active');
+    } else {
+      btn?.classList.remove('active');
+      sec?.classList.remove('active');
+    }
+  });
+}
+
 // Load submissions from API
 async function loadSubmissions() {
   try {
@@ -49,11 +66,35 @@ async function loadSubmissions() {
 
     const data = await res.json();
     allSubmissions = data.submissions;
+    document.getElementById('tabCount').textContent = data.total;
     updateStats(data.total);
     renderTable(allSubmissions);
   } catch (err) {
     showToast('Failed to load submissions.', 'error');
   }
+}
+
+// Load current game assignments
+async function loadGame() {
+  try {
+    const res = await fetch('/api/game/assignments');
+    if (res.status === 401) return;
+    const data = await res.json();
+    activeGame = data.game;
+
+    const count = activeGame ? activeGame.assignments.length : 0;
+    document.getElementById('tabLoopCount').textContent = count;
+    renderAssignments(activeGame);
+    updateStats(allSubmissions.length);
+  } catch (err) {
+    console.error('Failed to load game assignments:', err);
+  }
+}
+
+async function refreshAll() {
+  await loadSubmissions();
+  await loadGame();
+  showToast('Refreshed all data.', 'info');
 }
 
 // Update stat cards
@@ -64,10 +105,12 @@ function updateStats(total) {
   document.getElementById('remainingCount').textContent = remaining;
 
   const statusEl = document.getElementById('gameStatus');
-  if (total >= 20) {
-    statusEl.innerHTML = '✅ <span style="color:#22c55e;">Ready to start!</span>';
+  if (activeGame && activeGame.assignments && activeGame.assignments.length > 0) {
+    statusEl.innerHTML = `🔥 <span style="color:#22c55e;">Loop Active (${activeGame.assignments.length} Assassins)</span>`;
+  } else if (total >= 20) {
+    statusEl.innerHTML = '✅ <span style="color:#22c55e;">20 Players Ready! Click Shuffle.</span>';
   } else if (total >= 15) {
-    statusEl.innerHTML = '🔥 <span style="color:#f59e0b;">Almost there</span>';
+    statusEl.innerHTML = '⚡ <span style="color:#f59e0b;">Almost Full</span>';
   } else if (total > 0) {
     statusEl.innerHTML = '⏳ Collecting chits...';
   } else {
@@ -75,7 +118,7 @@ function updateStats(total) {
   }
 }
 
-// Render the table
+// Render the submissions table
 function renderTable(submissions) {
   const tbody = document.getElementById('tableBody');
   const emptyState = document.getElementById('emptyState');
@@ -91,7 +134,7 @@ function renderTable(submissions) {
   emptyState.style.display = 'none';
 
   tbody.innerHTML = submissions.map((sub, i) => {
-    const time = new Date(sub.submitted_at + 'Z').toLocaleString('en-IN', {
+    const time = new Date(sub.submitted_at).toLocaleString('en-IN', {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
@@ -117,7 +160,7 @@ function renderTable(submissions) {
   }).join('');
 }
 
-// Filter table by search
+// Filter submissions by search
 function filterTable() {
   const query = document.getElementById('searchInput').value.toLowerCase();
 
@@ -134,6 +177,186 @@ function filterTable() {
   );
 
   renderTable(filtered);
+}
+
+// ── Game Shuffle & Loop Generation ──────────────────────────────────────────
+
+async function shuffleGame() {
+  if (allSubmissions.length < 3) {
+    showToast(`You need at least 3 players to start (current: ${allSubmissions.length})`, 'error');
+    return;
+  }
+
+  if (activeGame && !confirm('⚠️ A game loop is already active! Reshuffling will create a NEW target loop. Proceed?')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/game/shuffle', { method: 'POST' });
+    const data = await res.json();
+
+    if (res.ok) {
+      activeGame = data.game;
+      showToast(data.message, 'success');
+      switchTab('game');
+      renderAssignments(activeGame);
+      document.getElementById('tabLoopCount').textContent = activeGame.assignments.length;
+      updateStats(allSubmissions.length);
+    } else {
+      showToast(data.error || 'Failed to shuffle game.', 'error');
+    }
+  } catch (err) {
+    showToast('Network error while shuffling.', 'error');
+  }
+}
+
+// Render game assignments
+function renderAssignments(game) {
+  const container = document.getElementById('assignmentsGrid');
+  const emptyState = document.getElementById('emptyGameState');
+  const visualizerContainer = document.getElementById('loopVisualizerContainer');
+  const visualizer = document.getElementById('loopVisualizer');
+
+  if (!game || !game.assignments || game.assignments.length === 0) {
+    container.innerHTML = '';
+    visualizerContainer.style.display = 'none';
+    emptyState.style.display = 'block';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  visualizerContainer.style.display = 'block';
+
+  // Render loop visualizer
+  const assignments = game.assignments;
+  let chainHtml = assignments.map(a => `
+    <span class="loop-node">
+      👤 ${escapeHtml(a.hunter_name)}
+    </span>
+    <span class="loop-arrow">➔</span>
+  `).join('');
+
+  // Closing loop arrow back to first
+  chainHtml += `
+    <span class="loop-node" style="border-color: var(--border-accent); color: var(--accent);">
+      👑 ${escapeHtml(assignments[0].hunter_name)} (Full Circle!)
+    </span>
+  `;
+  visualizer.innerHTML = chainHtml;
+
+  // Render assignment cards
+  container.innerHTML = assignments.map((a, idx) => {
+    return `
+      <div class="assignment-card">
+        <div>
+          <div class="assignment-header">
+            <div>
+              <div class="assignment-hunter">${escapeHtml(a.hunter_name)}</div>
+              <div class="assignment-room">Room: ${escapeHtml(a.hunter_room)}</div>
+            </div>
+            <div class="assignment-order">#${a.order} of ${assignments.length}</div>
+          </div>
+
+          <div class="assignment-target-box">
+            <div class="assignment-target-label">🎯 Assigned Target:</div>
+            <div class="assignment-target-name">${escapeHtml(a.target_name)}</div>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+              Target Room: ${escapeHtml(a.target_room)}
+            </div>
+          </div>
+
+          <div class="assignment-chits">
+            <div class="assignment-chit-item">
+              <span class="assignment-chit-label">Weapon:</span>
+              <span class="assignment-chit-val">🗡️ ${escapeHtml(a.object)}</span>
+            </div>
+            <div class="assignment-chit-item">
+              <span class="assignment-chit-label">Place:</span>
+              <span class="assignment-chit-val">📍 ${escapeHtml(a.place)}</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="copy-dm-btn" onclick="copyDM(${idx})">
+          📋 Copy WhatsApp DM
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+// Copy DM for single player
+function copyDM(index) {
+  if (!activeGame || !activeGame.assignments[index]) return;
+  const a = activeGame.assignments[index];
+
+  navigator.clipboard.writeText(a.dm_text).then(() => {
+    showToast(`Copied secret DM for ${a.hunter_name}!`, 'success');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = a.dm_text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showToast(`Copied secret DM for ${a.hunter_name}!`, 'success');
+  });
+}
+
+// Copy all DMs in one master batch
+function copyAllDMs() {
+  if (!activeGame || !activeGame.assignments) {
+    showToast('No active game loop to copy.', 'info');
+    return;
+  }
+
+  const allText = activeGame.assignments.map(a =>
+    `========================================\n` +
+    `SEND TO: ${a.hunter_name} (${a.hunter_room})\n` +
+    `========================================\n` +
+    `${a.dm_text}\n\n`
+  ).join('\n');
+
+  navigator.clipboard.writeText(allText).then(() => {
+    showToast('Copied ALL player assignments to clipboard!', 'success');
+  });
+}
+
+// Reset game loop
+async function resetGame() {
+  if (!confirm('Are you sure you want to reset the game loop? Submissions will NOT be deleted.')) return;
+
+  try {
+    const res = await fetch('/api/game/reset', { method: 'POST' });
+    if (res.ok) {
+      activeGame = null;
+      document.getElementById('tabLoopCount').textContent = 0;
+      renderAssignments(null);
+      updateStats(allSubmissions.length);
+      showToast('Game assignments cleared.', 'success');
+    }
+  } catch (err) {
+    showToast('Failed to reset game.', 'error');
+  }
+}
+
+// Export game assignments as JSON
+function exportGame() {
+  if (!activeGame || !activeGame.assignments) {
+    showToast('No active game to export.', 'info');
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(activeGame, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `paranoia_game_loop_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('Game loop exported successfully!', 'success');
 }
 
 // Delete a single submission
@@ -157,7 +380,7 @@ async function deleteSubmission(id) {
 
 // Clear all submissions
 async function clearAll() {
-  if (!confirm('⚠️ This will delete ALL submissions. Are you sure?')) return;
+  if (!confirm('⚠️ This will delete ALL submissions and active loops. Are you sure?')) return;
   if (!confirm('Seriously — this cannot be undone. Continue?')) return;
 
   try {
@@ -166,7 +389,9 @@ async function clearAll() {
 
     if (res.ok) {
       showToast('All submissions cleared.', 'success');
+      activeGame = null;
       loadSubmissions();
+      loadGame();
     } else {
       showToast(result.error, 'error');
     }
@@ -175,7 +400,7 @@ async function clearAll() {
   }
 }
 
-// Export as JSON
+// Export submissions as JSON
 function exportData() {
   if (allSubmissions.length === 0) {
     showToast('No data to export.', 'info');
@@ -205,9 +430,7 @@ function exportData() {
 async function logout() {
   try {
     await fetch('/api/logout', { method: 'POST' });
-  } catch (e) {
-    // Ignore
-  }
+  } catch (e) {}
   window.location.href = '/god';
 }
 
@@ -222,6 +445,7 @@ function escapeHtml(str) {
 (async () => {
   const authed = await checkAuth();
   if (authed) {
-    loadSubmissions();
+    await loadSubmissions();
+    await loadGame();
   }
 })();

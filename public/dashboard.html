@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PARANOIA — God's Dashboard. View all player submissions.">
+  <title>PARANOIA — God's Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
+</head>
+<body>
+
+  <div class="bg-scene"></div>
+  <div class="bg-grid"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="dashboard-container">
+
+    <!-- Header -->
+    <div class="dashboard-header fade-in">
+      <div class="dashboard-title-group">
+        <span class="dashboard-icon">👁️</span>
+        <h1 class="dashboard-title">God's Dashboard</h1>
+      </div>
+      <div class="dashboard-actions">
+        <button class="btn btn-secondary" id="refreshBtn" onclick="loadSubmissions()">
+          ↻ Refresh
+        </button>
+        <button class="btn btn-danger" id="clearAllBtn" onclick="clearAll()">
+          🗑 Clear All
+        </button>
+        <button class="btn btn-secondary" id="exportBtn" onclick="exportData()">
+          📥 Export JSON
+        </button>
+        <button class="btn btn-secondary" id="logoutBtn" onclick="logout()">
+          🚪 Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid fade-in fade-in-delay-1">
+      <div class="stat-card">
+        <div class="stat-label">Total Submissions</div>
+        <div class="stat-value" id="totalCount">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Spots Remaining</div>
+        <div class="stat-value stat-accent" id="remainingCount">20</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Game Status</div>
+        <div class="stat-value" id="gameStatus" style="font-size:1rem;padding-top:0.4rem;">
+          ⏳ Waiting for players
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card fade-in fade-in-delay-2">
+      <div class="table-header">
+        <h2 class="table-title">📋 Player Submissions</h2>
+        <input type="text" class="search-input" id="searchInput"
+               placeholder="🔍 Search by name, object, place..."
+               oninput="filterTable()">
+      </div>
+
+      <div class="table-wrapper">
+        <table class="data-table" id="dataTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Room</th>
+              <th>Object</th>
+              <th>Place</th>
+              <th>Submitted</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" id="emptyState" style="display:none">
+        <span class="empty-icon">👻</span>
+        <h3 class="empty-title">No submissions yet</h3>
+        <p class="empty-text">Share the player link and wait for chits to roll in.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

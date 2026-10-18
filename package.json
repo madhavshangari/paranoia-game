@@ -1,0 +1,14 @@
+{
+  "name": "paranoia-game",
+  "version": "1.0.0",
+  "description": "PARANOIA Game Manager — God's Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "express-session": "^1.18.0"
+  }
+}

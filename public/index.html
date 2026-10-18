@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PARANOIA — Submit your chits to God. The game has begun.">
+  <title>PARANOIA — Submit Your Chits</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔪</text></svg>">
+</head>
+<body>
+
+  <!-- Background scene -->
+  <div class="bg-scene"></div>
+  <div class="bg-grid"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+  <div class="particle"></div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="main-container">
+
+    <!-- Logo -->
+    <div class="logo-section fade-in">
+      <span class="logo-icon">🔪</span>
+      <h1 class="logo-title" data-text="PARANOIA">PARANOIA</h1>
+      <p class="logo-subtitle">Submit your chits to God</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card fade-in fade-in-delay-1" id="formCard">
+      <h2 class="card-title">Your 3 Chits</h2>
+      <p class="card-description">Fill in your details below. Once submitted, God will shuffle and assign your target.</p>
+
+      <form id="submitForm" autocomplete="off">
+        <div class="form-group fade-in fade-in-delay-1">
+          <label class="form-label" for="fullName">
+            <span class="label-icon">👤</span> Full Name
+          </label>
+          <input type="text" class="form-input" id="fullName" name="full_name"
+                 placeholder="e.g. Arjun Mehta" required>
+        </div>
+
+        <div class="form-group fade-in fade-in-delay-2">
+          <label class="form-label" for="roomNumber">
+            <span class="label-icon">🚪</span> Room Number
+          </label>
+          <input type="text" class="form-input" id="roomNumber" name="room_number"
+                 placeholder="e.g. B-204" required>
+        </div>
+
+        <div class="form-group fade-in fade-in-delay-3">
+          <label class="form-label" for="object">
+            <span class="label-icon">🎯</span> Holdable Object
+          </label>
+          <input type="text" class="form-input" id="object" name="object"
+                 placeholder="e.g. pen, bottle, towel..." required>
+          <p class="form-hint">Any object someone can hold in their hand</p>
+        </div>
+
+        <div class="form-group fade-in fade-in-delay-4">
+          <label class="form-label" for="place">
+            <span class="label-icon">📍</span> Public Place
+          </label>
+          <input type="text" class="form-input" id="place" name="place"
+                 placeholder="e.g. mess entrance, staircase..." required>
+          <p class="form-hint">A public place within N block</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary fade-in fade-in-delay-4" id="submitBtn">
+          <span id="btnText">Submit to God</span>
+          <div class="spinner" id="btnSpinner" style="display:none"></div>
+        </button>
+      </form>
+    </div>
+
+    <!-- Success State -->
+    <div class="card fade-in" id="successCard" style="display:none">
+      <div class="success-state active">
+        <span class="success-icon">👁️</span>
+        <h2 class="success-title">God Has Received Your Chits</h2>
+        <p class="success-text">
+          Stay silent. Trust no one. The game begins soon.<br>
+          <strong style="color: var(--accent);">Don't reveal that you're playing.</strong>
+        </p>
+      </div>
+    </div>
+
+    <a href="/god" class="footer-link fade-in fade-in-delay-4">
+      <span>👁</span> God's Portal
+    </a>
+
+  </div>
+
+  <script src="/js/player.js"></script>
+</body>
+</html>
